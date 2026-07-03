@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From notDvn</title>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background-color: #f5f5f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Dancing Script', cursive;
+        }
+
+        .container {
+            position: relative;
+            perspective: 1200px;
+        }
+
+        /* State Awal: Gulungan Kertas Silinder 3D */
+        .scroll-container {
+            position: relative;
+            width: 65px;
+            height: 480px;
+            background: linear-gradient(to right, #ccc 0%, #f9f9f9 25%, #ffffff 50%, #f9f9f9 75%, #ccc 100%);
+            border-radius: 20px / 10px;
+            box-shadow: 
+                inset 10px 0 15px rgba(0, 0, 0, 0.1),
+                inset -10px 0 15px rgba(0, 0, 0, 0.1),
+                0 15px 30px rgba(0, 0, 0, 0.12);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 1.4s cubic-bezier(0.25, 1, 0.3, 1);
+            cursor: pointer;
+            user-select: none;
+            transform-style: preserve-3d;
+        }
+
+        /* Bayangan di Bawah Kertas Saat Terbuka */
+        .scroll-container::before {
+            content: '';
+            position: absolute;
+            top: 4%;
+            left: 4%;
+            right: 4%;
+            bottom: -15px;
+            background: rgba(0, 0, 0, 0.06);
+            z-index: -1;
+            filter: blur(14px);
+            border-radius: 0;
+            opacity: 0;
+            transition: opacity 1.2s ease 0.2s;
+            pointer-events: none;
+        }
+
+        /* Komponen Pita & Simpul */
+        .ribbon-wrapper {
+            position: absolute;
+            width: 100%;
+            height: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
+
+        .ribbon-band {
+            width: 100%;
+            height: 24px;
+            background-color: #d90429;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.7s;
+        }
+
+        .ribbon-knot {
+            width: 24px;
+            height: 24px;
+            background-color: #b3001b;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            border-radius: 6px;
+            z-index: 12;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.9s;
+        }
+
+        .ribbon-bow {
+            width: 28px;
+            height: 28px;
+            background-color: #d90429;
+            position: absolute;
+            top: 50%;
+            z-index: 11;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.85s;
+        }
+        .ribbon-bow.left {
+            left: calc(50% - 23px);
+            transform: translateY(-50%) rotate(-45deg);
+            border-radius: 50% 50% 0 50%;
+            transform-origin: right center;
+        }
+        .ribbon-bow.right {
+            right: calc(50% - 23px);
+            transform: translateY(-50%) rotate(45deg);
+            border-radius: 50% 50% 50% 0;
+            transform-origin: left center;
+        }
+
+        .ribbon-tail {
+            position: absolute;
+            width: 10px;
+            height: 140px;
+            background-color: #d90429;
+            top: 15px;
+            z-index: 10;
+            clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 88%, 0% 100%);
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.15);
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.8s;
+            transform-origin: top center;
+        }
+        .ribbon-tail.left {
+            left: calc(50% - 11px);
+            transform: rotate(15deg);
+        }
+        .ribbon-tail.right {
+            right: calc(50% - 11px);
+            transform: rotate(-15deg);
+        }
+
+        /* Konten Teks dengan Efek Warped/Melengkung Mengikuti Kertas */
+        .letter-content {
+            opacity: 0;
+            visibility: hidden;
+            text-align: center;
+            width: 100%;
+            padding: 60px 85px;
+            color: #2b2d42;
+            transition: opacity 0.5s ease;
+            /* Efek warped 3D halus pada teks agar tampak menyatu dengan permukaan cekung */
+            transform: perspective(800px) rotateX(-2deg) skewY(0.4deg);
+            filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.15));
+        }
+
+        /* Jarak antar kalimat dirapatkan agar pas dan proporsional di dalam area kertas */
+        .letter-content p {
+            font-size: 1.55rem;
+            line-height: 1.35;
+            margin-bottom: 5px;
+        }
+
+        .letter-content .signature {
+            margin-top: 18px;
+            font-weight: bold;
+            font-size: 1.65rem;
+        }
+
+        /* State Terbuka: Kertas Lembaran dengan 4 Sudut Lancip & Sisi Cekung */
+        .scroll-container.open {
+            width: 530px;
+            max-width: 92vw;
+            height: 480px;
+            background: 
+                radial-gradient(circle at 50% 110%, rgba(0, 0, 0, 0.02) 0%, transparent 80%),
+                linear-gradient(to right, #e3e3e3 0%, #ffffff 4%, #ffffff 96%, #e3e3e3 100%);
+            border-radius: 0;
+            padding: 20px 0;
+            box-shadow: 
+                inset 20px 0 30px -15px rgba(0,0,0,0.05),
+                inset -20px 0 30px -15px rgba(0,0,0,0.05);
+            /* Menggunakan clip-path khusus dengan sudut siku-siku lancip */
+            clip-path: url(#sharpConcavePaper);
+            transform: rotateX(5deg) rotateY(-0.5deg);
+        }
+
+        .scroll-container.open::before {
+            opacity: 1;
+        }
+
+        /* Efek Transisi Melepas Simpul */
+        .scroll-container.open .ribbon-band {
+            opacity: 0;
+            transform: translateY(-50%) scaleX(0);
+            transition: all 0.4s ease-in 0.2s;
+        }
+
+        .scroll-container.open .ribbon-knot {
+            opacity: 0;
+            transform: translate(-50%, -50%) rotate(225deg) scale(0);
+            transition: all 0.3s ease-in 0.1s;
+        }
+
+        .scroll-container.open .ribbon-bow.left {
+            opacity: 0;
+            transform: translateY(-50%) rotate(-90deg) scale(0);
+            transition: all 0.3s ease-in 0.1s;
+        }
+
+        .scroll-container.open .ribbon-bow.right {
+            opacity: 0;
+            transform: translateY(-50%) rotate(90deg) scale(0);
+            transition: all 0.3s ease-in 0.1s;
+        }
+
+        .scroll-container.open .ribbon-tail.left {
+            opacity: 0;
+            transform: translateY(90px) translateX(-45px) rotate(45deg) scaleY(0.4);
+            transition: all 0.5s ease-in;
+        }
+
+        .scroll-container.open .ribbon-tail.right {
+            opacity: 0;
+            transform: translateY(90px) translateX(45px) rotate(-45deg) scaleY(0.4);
+            transition: all 0.5s ease-in;
+        }
+
+        .scroll-container.open .letter-content {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.8s ease 0.7s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="scroll-container" id="paperScroll">
+            
+            <div class="ribbon-wrapper" id="redRibbon">
+                <div class="ribbon-band"></div>
+                <div class="ribbon-bow left"></div>
+                <div class="ribbon-bow right"></div>
+                <div class="ribbon-knot"></div>
+                <div class="ribbon-tail left"></div>
+                <div class="ribbon-tail right"></div>
+            </div>
+
+            <div class="letter-content">
+                <p>Selamat tidur, Lia..</p>
+                <p>Maaf Mengganggu.</p>
+                <p>Lia udah tidur sekarang ?</p>
+                <p>Kalau sudah,</p>
+                <p>Aku Cuma ingin bilang, jangan tidur nyenyak, nanti cicak jatuh.</p>
+                <p>Hati-hati.</p>
+                <p>Selamat tidur</p>
+                <p class="signature">Dariku, pengagum-mu.</p>
+            </div>
+            
+        </div>
+    </div>
+
+    <svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <clipPath id="sharpConcavePaper" clipPathUnits="objectBoundingBox">
+                <path d="M 0.02, 0.02 
+                         Q 0.5, 0.07 0.98, 0.02 
+                         Q 0.93, 0.5 0.98, 0.98 
+                         Q 0.5, 0.93 0.02, 0.98 
+                         Q 0.07, 0.5 0.02, 0.02 Z" />
+            </clipPath>
+        </defs>
+    </svg>
+
+    <script>
+        const paperScroll = document.getElementById('paperScroll');
+
+        paperScroll.addEventListener('click', function() {
+            paperScroll.classList.toggle('open');
+        });
+    </script>
+</body>
+</html>
